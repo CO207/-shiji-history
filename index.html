@@ -1,0 +1,141 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f6f2">
+<title>时迹 · 历史上的今天</title>
+<style>
+:root{--bg:#f7f6f2;--paper:#fff;--ink:#20211f;--muted:#85867f;--line:#e8e6df;--accent:#a24d36}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Noto Sans SC",sans-serif}
+header{padding:28px 22px 20px;border-bottom:1px solid var(--line)}
+.brand{font-size:13px;letter-spacing:4px;color:var(--accent);font-weight:700}
+h1{font-size:34px;letter-spacing:-1.5px;margin:16px 0 6px}
+.sub{font-size:14px;color:var(--muted)}
+main{max-width:760px;margin:auto;padding:22px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:18px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:8px}
+input,button{font:inherit}
+input[type=date],input[type=search]{width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);min-width:0}
+.search{margin-top:14px}
+.row{display:flex;gap:10px;align-items:center}
+button{cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:10px 14px;background:white;color:var(--ink)}
+button.primary{background:var(--ink);color:white;border-color:var(--ink)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h2{font-size:18px;margin:0 0 16px}
+.status{font-size:13px;color:var(--muted);line-height:1.7}
+.event{padding:18px 0;border-top:1px solid var(--line)}
+.event:first-child{border-top:0}
+.year{font-size:13px;color:var(--accent);font-weight:700;letter-spacing:1px}
+.event p{font-size:15px;line-height:1.85;margin:8px 0 12px}
+.event a{font-size:13px;color:var(--accent);text-decoration:none}
+.event a:hover{text-decoration:underline}
+.event button{float:right;padding:5px 9px;font-size:12px}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:20px;line-height:1.8}
+.hidden{display:none}
+@media(min-width:600px){header{padding:42px max(28px,calc((100% - 716px)/2)) 30px}h1{font-size:42px}main{padding-top:30px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">SHIJI · HISTORY</div>
+  <h1>历史上的今天</h1>
+  <div class="sub">每一天，都有值得记住的故事。</div>
+</header>
+<main>
+  <section class="panel">
+    <label for="date">探索日期</label>
+    <input id="date" type="date">
+    <div class="search">
+      <label for="search">搜索历史事件</label>
+      <input id="search" type="search" placeholder="输入关键词，例如：科学、战争、艺术">
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="primary" id="load">探索这一天</button>
+      <button id="favorites">我的收藏 ♡</button>
+    </div>
+  </section>
+  <section class="panel">
+    <h2 id="heading">今日历史</h2>
+    <div id="status" class="status">正在准备历史事件……</div>
+    <div id="events"></div>
+  </section>
+  <footer>
+    历史资料来源：维基百科 · Wikimedia Foundation<br>
+    本页面为免费历史探索项目，事件内容以来源页面为准。
+  </footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const date=$("date"),eventsBox=$("events"),statusBox=$("status");
+let allEvents=[],showFav=false;
+const pad=n=>String(n).padStart(2,"0");
+const today=new Date();
+date.value=`${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+function saved(){try{return JSON.parse(localStorage.getItem("shiji-favorites")||"[]")}catch{return []}}
+function save(items){localStorage.setItem("shiji-favorites",JSON.stringify(items))}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function render(){
+ const q=$("search").value.trim().toLowerCase();
+ const fav=saved();
+ const list=allEvents.filter(e=>{
+  const key=e.date+"|"+e.text;
+  return (!showFav||fav.includes(key))&&(!q||(e.text+" "+e.year).toLowerCase().includes(q));
+ });
+ eventsBox.innerHTML="";
+ if(!list.length){statusBox.textContent=showFav?"还没有收藏的事件，或没有符合条件的结果。":"没有找到匹配的事件。";return}
+ statusBox.textContent=`显示 ${list.length} 条事件。点击“了解来源”可查看详细资料。`;
+ list.forEach(e=>{
+  const key=e.date+"|"+e.text;
+  const article=document.createElement("article");
+  article.className="event";
+  article.innerHTML=`<div class="year">${escapeHTML(e.year)}</div>
+  <button type="button" aria-label="收藏事件">${fav.includes(key)?"★ 已收藏":"☆ 收藏"}</button>
+  <p>${escapeHTML(e.text)}</p>
+  <a href="${escapeHTML(e.url)}" target="_blank" rel="noopener noreferrer">了解来源 ↗</a>`;
+  article.querySelector("button").onclick=()=>{
+   const next=saved();
+   if(next.includes(key))save(next.filter(x=>x!==key));else save([...next,key]);
+   render();
+  };
+  eventsBox.appendChild(article);
+ });
+}
+async function load(){
+ const parts=date.value.split("-");
+ if(parts.length!==3){statusBox.textContent="请先选择有效日期。";return}
+ const [,mm,dd]=parts;
+ $("heading").textContent=`${Number(mm)}月${Number(dd)}日`;
+ showFav=false;$("favorites").textContent="我的收藏 ♡";
+ statusBox.textContent="正在查询历史资料……";
+ eventsBox.innerHTML="";allEvents=[];
+ try{
+  const url=`https://api.wikimedia.org/feed/v1/wikipedia/zh/onthisday/events/${mm}/${dd}`;
+  const response=await fetch(url);
+  if(!response.ok)throw new Error("查询失败");
+  const data=await response.json();
+  allEvents=(data.events||[]).map(e=>({
+   year:e.year,
+   text:e.text,
+   date:`${mm}-${dd}`,
+   url:e.pages?.[0]?.content_urls?.desktop?.page||`https://zh.wikipedia.org/wiki/${encodeURIComponent(e.pages?.[0]?.title||"")}`
+  })).filter(e=>e.text);
+  if(!allEvents.length)throw new Error("没有返回事件");
+  render();
+ }catch(err){
+  statusBox.textContent="暂时无法获取历史资料。请检查网络后重试；部分网络可能无法访问维基百科接口。";
+ }
+}
+$("load").addEventListener("click",load);
+$("search").addEventListener("input",render);
+$("favorites").addEventListener("click",()=>{
+ showFav=!showFav;
+ $("favorites").textContent=showFav?"返回全部事件":"我的收藏 ♡";
+ render();
+});
+load();
+</script>
+</body>
+</html>
